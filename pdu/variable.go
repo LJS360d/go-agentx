@@ -115,12 +115,17 @@ func (v *Variable) UnmarshalBinary(data []byte) error {
 	if err := binary.Read(buffer, binary.LittleEndian, &v.Type); err != nil {
 		return err
 	}
-	offset := 4
 
-	if err := v.Name.UnmarshalBinary(data[offset:]); err != nil {
+	buffer.ReadByte()
+	buffer.ReadByte()
+
+	remaining := buffer.Bytes()
+	if err := v.Name.UnmarshalBinary(remaining); err != nil {
 		return err
 	}
-	offset += v.Name.ByteSize()
+
+	offset := v.Name.ByteSize()
+	buffer.Next(offset)
 
 	switch v.Type {
 	case VariableTypeInteger:
@@ -131,7 +136,7 @@ func (v *Variable) UnmarshalBinary(data []byte) error {
 		v.Value = value
 	case VariableTypeOctetString:
 		octetString := &OctetString{}
-		if err := octetString.UnmarshalBinary(data[offset:]); err != nil {
+		if err := octetString.UnmarshalBinary(remaining[offset:]); err != nil {
 			return err
 		}
 		v.Value = octetString.Text
@@ -139,13 +144,13 @@ func (v *Variable) UnmarshalBinary(data []byte) error {
 		v.Value = nil
 	case VariableTypeObjectIdentifier:
 		oid := &ObjectIdentifier{}
-		if err := oid.UnmarshalBinary(data[offset:]); err != nil {
+		if err := oid.UnmarshalBinary(remaining[offset:]); err != nil {
 			return err
 		}
 		v.Value = oid.GetIdentifier()
 	case VariableTypeIPAddress:
 		octetString := &OctetString{}
-		if err := octetString.UnmarshalBinary(data[offset:]); err != nil {
+		if err := octetString.UnmarshalBinary(remaining[offset:]); err != nil {
 			return err
 		}
 		v.Value = net.IP(octetString.Text)
@@ -163,7 +168,7 @@ func (v *Variable) UnmarshalBinary(data []byte) error {
 		v.Value = time.Duration(value) * time.Second / 100
 	case VariableTypeOpaque:
 		octetString := &OctetString{}
-		if err := octetString.UnmarshalBinary(data[offset:]); err != nil {
+		if err := octetString.UnmarshalBinary(remaining[offset:]); err != nil {
 			return err
 		}
 		v.Value = []byte(octetString.Text)
