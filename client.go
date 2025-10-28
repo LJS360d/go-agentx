@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/LJS360d/go-agentx/pdu"
@@ -26,6 +27,10 @@ type Client struct {
 	conn        net.Conn
 	requestChan chan *request
 	sessions    map[uint32]*Session
+	errorChan   chan error
+	errorOnce   sync.Once
+	closed      bool
+	mu          sync.Mutex
 }
 
 // Dial connects to the provided agentX endpoint.
@@ -47,6 +52,7 @@ func Dial(network, address string, opts ...DialOption) (*Client, error) {
 		conn:        conn,
 		requestChan: make(chan *request),
 		sessions:    make(map[uint32]*Session),
+		errorChan:   make(chan error, 10),
 	}
 
 	if c.logger == nil {
@@ -56,16 +62,56 @@ func Dial(network, address string, opts ...DialOption) (*Client, error) {
 	tx := c.runTransmitter()
 	rx := c.runReceiver()
 	c.runDispatcher(tx, rx)
+	c.runErrorHandler()
 
 	return c, nil
 }
 
 // Close tears down the client.
 func (c *Client) Close() error {
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return nil
+	}
+	c.closed = true
+	c.mu.Unlock()
+
+	c.errorOnce.Do(func() {
+		close(c.errorChan)
+	})
+
 	if err := c.conn.Close(); err != nil {
 		return fmt.Errorf("close connection: %w", err)
 	}
 	return nil
+}
+
+func (c *Client) Error() <-chan error {
+	return c.errorChan
+}
+
+func (c *Client) reportError(err error) {
+	c.mu.Lock()
+	closed := c.closed
+	c.mu.Unlock()
+	if closed {
+		return
+	}
+	select {
+	case c.errorChan <- err:
+	default:
+	}
+}
+
+func (c *Client) runErrorHandler() {
+	go func() {
+		for err := range c.errorChan {
+			if c.options.errorHandler != nil {
+				c.options.errorHandler(err)
+			}
+		}
+	}()
 }
 
 // Session sets up a new session.
@@ -123,6 +169,7 @@ func (c *Client) runReceiver() chan *pdu.HeaderPacket {
 						conn, err := net.Dial(c.network, c.address)
 						if err != nil {
 							c.logger.Error("re-connect error", slog.Any("err", err))
+							c.reportError(fmt.Errorf("re-connect error: %w", err))
 							continue reopenLoop
 						}
 						c.conn = conn
@@ -131,6 +178,7 @@ func (c *Client) runReceiver() chan *pdu.HeaderPacket {
 								delete(c.sessions, session.ID())
 								if err := session.reopen(); err != nil {
 									c.logger.Error("re-open error", slog.Any("err", err))
+									c.reportError(fmt.Errorf("session re-open error: %w", err))
 									return
 								}
 								c.sessions[session.ID()] = session
@@ -140,12 +188,14 @@ func (c *Client) runReceiver() chan *pdu.HeaderPacket {
 						continue mainLoop
 					}
 				}
-				panic(err)
+				c.reportError(fmt.Errorf("header read error: %w", err))
+				return
 			}
 
 			header := &pdu.Header{}
 			if err := header.UnmarshalBinary(headerBytes); err != nil {
-				panic(err)
+				c.reportError(fmt.Errorf("header unmarshal error: %w", err))
+				return
 			}
 
 			var packet pdu.Packet
@@ -172,11 +222,13 @@ func (c *Client) runReceiver() chan *pdu.HeaderPacket {
 
 			packetBytes := make([]byte, header.PayloadLength)
 			if _, err := reader.Read(packetBytes); err != nil {
-				panic(err)
+				c.reportError(fmt.Errorf("packet read error: %w", err))
+				return
 			}
 
 			if err := packet.UnmarshalBinary(packetBytes); err != nil {
-				panic(err)
+				c.reportError(fmt.Errorf("packet unmarshal error: %w", err))
+				return
 			}
 
 			rx <- &pdu.HeaderPacket{Header: header, Packet: packet}
