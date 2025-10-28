@@ -8,7 +8,7 @@ The AgentX-Protocol can be used to extend a snmp-daemon such that it dispatches 
 
 ## State
 
-The library implements all variable types (Integer, OctetString, Null, ObjectIdentifier, IPAddress, Counter32, Gauge32, TimeTicks, Opaque, Counter64, NoSuchObject, NoSuchInstance, EndOfMIBView), but only some of the requests (Get, GetNext, GetBulk). Set-requests and Traps are not implemented yet.
+The library implements all variable types (Integer, OctetString, Null, ObjectIdentifier, IPAddress, Counter32, Gauge32, TimeTicks, Opaque, Counter64, NoSuchObject, NoSuchInstance, EndOfMIBView), and all requests (Get, GetNext, GetBulk, Set operations, and Traps).
 
 ## Helper
 

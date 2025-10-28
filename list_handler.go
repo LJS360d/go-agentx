@@ -18,6 +18,22 @@ type ListHandler struct {
 	items map[string]*ListItem
 }
 
+// Set updates the value for the provided oid.
+func (l *ListHandler) Set(ctx context.Context, oid value.OID, t pdu.VariableType, value any) error {
+	if l.items == nil {
+		return nil
+	}
+
+	item, ok := l.items[oid.String()]
+	if !ok {
+		return nil
+	}
+
+	item.Type = t
+	item.Value = value
+	return nil
+}
+
 // Add adds a list item for the provided oid and returns it.
 func (l *ListHandler) Add(oid string) *ListItem {
 	if l.items == nil {

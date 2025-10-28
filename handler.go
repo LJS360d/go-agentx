@@ -16,6 +16,7 @@ import (
 type Handler interface {
 	Get(context.Context, value.OID) (value.OID, pdu.VariableType, any, error)
 	GetNext(context.Context, value.OID, bool, value.OID) (value.OID, pdu.VariableType, any, error)
+	Set(context.Context, value.OID, pdu.VariableType, any) error
 }
 
 type (

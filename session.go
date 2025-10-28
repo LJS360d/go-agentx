@@ -106,6 +106,18 @@ func (s *Session) Close() error {
 	return nil
 }
 
+// SendTrap sends a trap/notification to the master agent.
+func (s *Session) SendTrap(timestamp time.Duration, variables pdu.Variables) error {
+	requestPacket := &pdu.Notify{
+		Timestamp: timestamp,
+		Variables: variables,
+	}
+	request := &pdu.HeaderPacket{Header: &pdu.Header{Type: pdu.TypeNotify}, Packet: requestPacket}
+
+	response := s.request(request)
+	return checkError(response)
+}
+
 func (s *Session) reopen() error {
 	if s.openRequestPacket != nil {
 		response := s.request(s.openRequestPacket)
@@ -180,6 +192,31 @@ func (s *Session) handle(request *pdu.HeaderPacket) *pdu.HeaderPacket {
 				responsePacket.Variables.Add(oid, t, v)
 			}
 		}
+
+	case *pdu.TestSet:
+		if s.handler == nil {
+			s.client.logger.Warn("no handler for session specified")
+			break
+		}
+
+		for _, variable := range requestPacket.Variables {
+			err := s.handler.Set(ctx, variable.Name.GetIdentifier(), variable.Type, variable.Value)
+			if err != nil {
+				s.client.logger.Error("test set error", slog.Any("err", err))
+				responsePacket.Error = pdu.ErrorProcessing
+				break
+			}
+			responsePacket.Variables.Add(variable.Name.GetIdentifier(), variable.Type, variable.Value)
+		}
+
+	case *pdu.CommitSet:
+		responsePacket.Error = pdu.ErrorNone
+
+	case *pdu.UndoSet:
+		responsePacket.Error = pdu.ErrorNone
+
+	case *pdu.CleanupSet:
+		responsePacket.Error = pdu.ErrorNone
 
 	default:
 		s.client.logger.Error("unable to handle packet", slog.String("packet-type", request.Header.Type.String()))
