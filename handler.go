@@ -7,8 +7,8 @@ package agentx
 import (
 	"context"
 
-	"github.com/posteo/go-agentx/pdu"
-	"github.com/posteo/go-agentx/value"
+	"github.com/LJS360d/go-agentx/pdu"
+	"github.com/LJS360d/go-agentx/value"
 )
 
 // Handler defines an interface for a handler of events that

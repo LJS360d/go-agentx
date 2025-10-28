@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/posteo/go-agentx/value"
+	"github.com/LJS360d/go-agentx/value"
 )
 
 // ObjectIdentifier defines the pdu object identifier packet.

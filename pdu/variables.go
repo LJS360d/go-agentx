@@ -7,7 +7,7 @@ package pdu
 import (
 	"strings"
 
-	"github.com/posteo/go-agentx/value"
+	"github.com/LJS360d/go-agentx/value"
 )
 
 // Variables defines a list of variable bindings.

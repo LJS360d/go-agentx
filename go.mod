@@ -1,4 +1,4 @@
-module github.com/posteo/go-agentx
+module github.com/LJS360d/go-agentx
 
 go 1.18
 
