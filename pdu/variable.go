@@ -89,7 +89,15 @@ func (v *Variable) MarshalBinary() ([]byte, error) {
 		value := v.Value.(uint32)
 		binary.Write(buffer, binary.LittleEndian, &value)
 	case VariableTypeTimeTicks:
-		value := uint32(v.Value.(time.Duration).Seconds() * 100)
+		var value uint32
+		switch val := v.Value.(type) {
+		case time.Duration:
+			value = uint32(val.Seconds() * 100)
+		case uint32:
+			value = val
+		default:
+			return nil, fmt.Errorf("invalid value type for TimeTicks: %T", v.Value)
+		}
 		binary.Write(buffer, binary.LittleEndian, &value)
 	case VariableTypeOpaque:
 		octetString := &OctetString{Text: string(v.Value.([]byte))}
