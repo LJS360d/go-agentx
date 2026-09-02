@@ -196,17 +196,22 @@ func (s *Session) handle(request *pdu.HeaderPacket) *pdu.HeaderPacket {
 	case *pdu.TestSet:
 		if s.handler == nil {
 			s.client.logger.Warn("no handler for session specified")
+			responsePacket.Error = pdu.ErrorNotWritable
 			break
 		}
 
-		for _, variable := range requestPacket.Variables {
+		// RFC 2741 6.2.6: the response to testSet carries an error/index only,
+		// its VarBindList must be empty.
+		for i, variable := range requestPacket.Variables {
 			err := s.handler.Set(ctx, variable.Name.GetIdentifier(), variable.Type, variable.Value)
 			if err != nil {
-				s.client.logger.Error("test set error", slog.Any("err", err))
-				responsePacket.Error = pdu.ErrorProcessing
+				s.client.logger.Error("test set error",
+					slog.String("oid", variable.Name.GetIdentifier().String()),
+					slog.Any("err", err))
+				responsePacket.Error = setError(err)
+				responsePacket.Index = uint16(i + 1)
 				break
 			}
-			responsePacket.Variables.Add(variable.Name.GetIdentifier(), variable.Type, variable.Value)
 		}
 
 	case *pdu.CommitSet:
@@ -224,6 +229,17 @@ func (s *Session) handle(request *pdu.HeaderPacket) *pdu.HeaderPacket {
 	}
 
 	return &pdu.HeaderPacket{Header: responseHeader, Packet: responsePacket}
+}
+
+// setError extracts an explicit SNMP error-status from a Handler.Set error,
+// falling back to genErr. Wrap with fmt.Errorf("...: %w", pdu.ErrorNotWritable)
+// to keep a descriptive message and still control the code the client sees.
+func setError(err error) pdu.Error {
+	var e pdu.Error
+	if errors.As(err, &e) && e != pdu.ErrorNone {
+		return e
+	}
+	return pdu.ErrorGenErr
 }
 
 func checkError(hp *pdu.HeaderPacket) error {

@@ -6,6 +6,24 @@ package pdu
 
 import "fmt"
 
+// SNMPv2 error-status values. These are legal in a Response to
+// TestSet/CommitSet/UndoSet (RFC 2741 6.2.6)
+const (
+	ErrorGenErr              Error = 5
+	ErrorNoAccess            Error = 6
+	ErrorWrongType           Error = 7
+	ErrorWrongLength         Error = 8
+	ErrorWrongEncoding       Error = 9
+	ErrorWrongValue          Error = 10
+	ErrorNoCreation          Error = 11
+	ErrorInconsistentValue   Error = 12
+	ErrorResourceUnavailable Error = 13
+	ErrorCommitFailed        Error = 14
+	ErrorUndoFailed          Error = 15
+	ErrorNotWritable         Error = 17
+	ErrorInconsistentName    Error = 18
+)
+
 // The various pdu packet errors.
 const (
 	ErrorNone                  Error = 0
@@ -27,10 +45,42 @@ const (
 // Error defines a pdu packet error.
 type Error uint16
 
+// Error lets an Error be returned directly from a Handler, so session.handle
+// can recover the exact code with errors.As.
+func (e Error) Error() string {
+	return e.String()
+}
+
 func (e Error) String() string {
 	switch e {
 	case ErrorNone:
 		return "ErrorNone"
+	case ErrorGenErr:
+		return "ErrorGenErr"
+	case ErrorNoAccess:
+		return "ErrorNoAccess"
+	case ErrorWrongType:
+		return "ErrorWrongType"
+	case ErrorWrongLength:
+		return "ErrorWrongLength"
+	case ErrorWrongEncoding:
+		return "ErrorWrongEncoding"
+	case ErrorWrongValue:
+		return "ErrorWrongValue"
+	case ErrorNoCreation:
+		return "ErrorNoCreation"
+	case ErrorInconsistentValue:
+		return "ErrorInconsistentValue"
+	case ErrorResourceUnavailable:
+		return "ErrorResourceUnavailable"
+	case ErrorCommitFailed:
+		return "ErrorCommitFailed"
+	case ErrorUndoFailed:
+		return "ErrorUndoFailed"
+	case ErrorNotWritable:
+		return "ErrorNotWritable"
+	case ErrorInconsistentName:
+		return "ErrorInconsistentName"
 	case ErrorOpenFailed:
 		return "ErrorOpenFailed"
 	case ErrorNotOpen:
