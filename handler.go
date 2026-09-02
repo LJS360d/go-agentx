@@ -19,6 +19,34 @@ type Handler interface {
 	Set(context.Context, value.OID, pdu.VariableType, any) error
 }
 
+// SetRequest is one variable binding of a set transaction.
+type SetRequest struct {
+	OID   value.OID
+	Type  pdu.VariableType
+	Value any
+}
+
+// SetHandler is an optional extension of Handler that opts a session into the
+// full RFC 2741 set protocol. A handler that implements it gets:
+//
+//	TestSet   validate only; must not apply the change
+//	CommitSet apply every variable binding that passed TestSet
+//	UndoSet   roll back a commit the master agent has abandoned
+//
+// The session accumulates the bindings that passed TestSet for the duration of
+// the transaction and hands the whole slice to CommitSet and UndoSet, so a
+// handler does not need to track transaction state of its own. Handler.Set is
+// never called on a handler implementing SetHandler.
+//
+// A handler that implements only Handler keeps the legacy behaviour: Set runs
+// during the testSet phase and commitSet is a no-op, which means the change is
+// applied before the master agent has decided to commit.
+type SetHandler interface {
+	TestSet(ctx context.Context, req SetRequest) error
+	CommitSet(ctx context.Context, reqs []SetRequest) error
+	UndoSet(ctx context.Context, reqs []SetRequest) error
+}
+
 type (
 	sessionIDKey     struct{}
 	transactionIDKey struct{}
