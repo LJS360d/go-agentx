@@ -9,7 +9,13 @@ import (
 )
 
 // Multi defines a binary marshaler that marshals all child marshalers
-// and concatinate the results.
+// and concatenates the results.
+//
+// Deprecated: nothing in this module uses it any more. Each PDU type lays out
+// its own payload, because the RFC 2741 6.2.x layouts differ in ways a generic
+// concatenation cannot express - the Open, Register and Unregister PDUs each
+// treat the four bytes before the subtree differently. It is kept so that
+// existing importers still compile.
 type Multi []encoding.BinaryMarshaler
 
 // NewMulti returns a new instance of MultiBinaryMarshaler.

@@ -5,6 +5,7 @@
 package pdu
 
 import (
+	"encoding/binary"
 	"fmt"
 )
 
@@ -21,16 +22,35 @@ func (r *Range) ByteSize() int {
 
 // MarshalBinary returns the pdu packet as a slice of bytes.
 func (r *Range) MarshalBinary() ([]byte, error) {
-	r.To.SetInclude(false)
-	return []byte{}, nil
+	fromBytes, err := r.From.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	// RFC 2741 5.2: the ending OID's include field is always 0.
+	to := r.To
+	to.Include = 0x00
+	toBytes, err := to.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	return append(fromBytes, toBytes...), nil
 }
 
 // UnmarshalBinary sets the packet structure from the provided slice of bytes.
 func (r *Range) UnmarshalBinary(data []byte) error {
-	if err := r.From.UnmarshalBinary(data); err != nil {
+	return r.UnmarshalBinaryOrder(data, binary.LittleEndian)
+}
+
+// UnmarshalBinaryOrder sets the packet structure from the provided slice of
+// bytes, decoding multi-byte fields in the byte order the enclosing PDU header
+// declared.
+func (r *Range) UnmarshalBinaryOrder(data []byte, order binary.ByteOrder) error {
+	if err := r.From.UnmarshalBinaryOrder(data, order); err != nil {
 		return err
 	}
-	if err := r.To.UnmarshalBinary(data[r.From.ByteSize():]); err != nil {
+	if err := r.To.UnmarshalBinaryOrder(data[r.From.ByteSize():], order); err != nil {
 		return err
 	}
 	return nil

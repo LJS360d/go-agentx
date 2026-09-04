@@ -40,8 +40,15 @@ func MustParseOID(text string) OID {
 	return result
 }
 
-// First returns the first n subidentifiers as a new oid.
+// First returns the first n subidentifiers as a new oid. Asking for more
+// subidentifiers than the oid has returns the whole oid.
 func (o OID) First(count int) OID {
+	if count < 0 {
+		return nil
+	}
+	if count > len(o) {
+		count = len(o)
+	}
 	return o[:count]
 }
 
@@ -62,27 +69,28 @@ func (o OID) CommonPrefix(other OID) OID {
 
 // CompareOIDs returns an integer comparing two OIDs lexicographically.
 // The result will be 0 if oid1 == oid2, -1 if oid1 < oid2, +1 if oid1 > oid2.
+//
+// A nil OID is treated as the empty OID, which sorts before every other value
+// and equals itself. Callers that need "no upper bound" semantics for a null
+// ending OID (RFC 2741 5.2) must special-case it before comparing; an empty
+// OID compares as the smallest value, not the largest.
 func CompareOIDs(oid1, oid2 OID) int {
-	if oid2 != nil {
-		oid1Length := len(oid1)
-		oid2Length := len(oid2)
-		for i := 0; i < oid1Length && i < oid2Length; i++ {
-			if oid1[i] < oid2[i] {
-				return -1
-			}
-			if oid1[i] > oid2[i] {
-				return 1
-			}
-		}
-		if oid1Length == oid2Length {
-			return 0
-		} else if oid1Length < oid2Length {
+	for i := 0; i < len(oid1) && i < len(oid2); i++ {
+		if oid1[i] < oid2[i] {
 			return -1
-		} else {
+		}
+		if oid1[i] > oid2[i] {
 			return 1
 		}
 	}
-	return 1
+
+	switch {
+	case len(oid1) < len(oid2):
+		return -1
+	case len(oid1) > len(oid2):
+		return 1
+	}
+	return 0
 }
 
 // SortOIDs performs sorting of the OID list.

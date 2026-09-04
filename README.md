@@ -2,13 +2,27 @@
 
 [![Documentation](https://godoc.org/github.com/LJS360d/go-agentx?status.svg)](http://godoc.org/github.com/LJS360d/go-agentx)
 
-A library with a pure Go implementation of the [AgentX-Protocol](http://tools.ietf.org/html/rfc2741). The library is not yet feature-complete, but should be far enough to used in a production environment.
+A library with a pure Go implementation of the [AgentX-Protocol](http://tools.ietf.org/html/rfc2741) (RFC 2741). It implements the **subagent** side of the protocol; it is not a master agent.
 
 The AgentX-Protocol can be used to extend a snmp-daemon such that it dispatches the requests to an OID-subtree to your Go application. Those requests are than handled by this library and can be replied with metrics about your applications state.
 
 ## State
 
-The library implements all variable types (Integer, OctetString, Null, ObjectIdentifier, IPAddress, Counter32, Gauge32, TimeTicks, Opaque, Counter64, NoSuchObject, NoSuchInstance, EndOfMIBView), and all requests (Get, GetNext, GetBulk, Set operations, and Traps).
+The library implements all variable types (Integer, OctetString, Null, ObjectIdentifier, IPAddress, Counter32, Gauge32, TimeTicks, Opaque, Counter64, NoSuchObject, NoSuchInstance, EndOfMIBView) and the Get, GetNext, Set (TestSet/CommitSet/UndoSet/CleanupSet) and Notify/trap operations.
+
+**GetBulk is not implemented**, and neither are non-default contexts, Ping, index allocation or agent capabilities. [`docs/RFC2741-COMPLIANCE.md`](docs/RFC2741-COMPLIANCE.md) is a section-by-section account of what is implemented, what is partial and what is missing. [`docs/REVIEW.md`](docs/REVIEW.md) records the conformance and robustness defects that were found and fixed, each with the test that pins it.
+
+## Set operations
+
+A `Handler` that implements only `agentx.Handler` applies a set during the **testSet** phase, before the master agent has decided to commit. Implement the optional `agentx.SetHandler` interface to get the two-phase behaviour RFC 2741 7.2.4 describes: `TestSet` validates, `CommitSet` applies, `UndoSet` rolls back.
+
+## Tests
+
+```sh
+go test -race ./...                 # unit tests, an in-process fake master agent, fuzz targets
+go test -tags snmpd ./...           # end-to-end against a real net-snmp snmpd (needs the binary)
+go test -fuzz FuzzDecoders ./pdu    # everything a subagent parses comes off the network
+```
 
 ## Helper
 

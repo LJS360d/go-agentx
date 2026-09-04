@@ -2,6 +2,15 @@
 // Licensed under the LGPLv3 with static-linking exception.
 // See LICENCE file for details.
 
+//go:build snmpd
+
+// These tests drive a real net-snmp master agent (snmpd) over a local socket.
+// They are the end-to-end check that what this library puts on the wire is what
+// an actual master agent accepts, and they need the snmpd binary and
+// snmpd.conf, so they are kept out of the default `go test ./...` run:
+//
+//	go test -tags snmpd ./...
+
 package agentx_test
 
 import (

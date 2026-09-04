@@ -5,6 +5,7 @@
 package pdu
 
 import (
+	"encoding/binary"
 	"strings"
 
 	"github.com/LJS360d/go-agentx/value"
@@ -23,8 +24,8 @@ func (v *Variables) Add(oid value.OID, t VariableType, value interface{}) {
 // MarshalBinary returns the pdu packet as a slice of bytes.
 func (v *Variables) MarshalBinary() ([]byte, error) {
 	result := []byte{}
-	for _, variable := range *v {
-		data, err := variable.MarshalBinary()
+	for index := range *v {
+		data, err := (*v)[index].MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
@@ -35,14 +36,22 @@ func (v *Variables) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary sets the packet structure from the provided slice of bytes.
 func (v *Variables) UnmarshalBinary(data []byte) error {
+	return v.UnmarshalBinaryOrder(data, binary.LittleEndian)
+}
+
+// UnmarshalBinaryOrder sets the packet structure from the provided slice of
+// bytes, decoding multi-byte fields in the byte order the enclosing PDU header
+// declared.
+func (v *Variables) UnmarshalBinaryOrder(data []byte, order binary.ByteOrder) error {
 	*v = make([]Variable, 0)
 	for offset := 0; offset < len(data); {
 		variable := Variable{}
-		if err := variable.UnmarshalBinary(data[offset:]); err != nil {
+		size, err := variable.unmarshal(data[offset:], order)
+		if err != nil {
 			return err
 		}
 		*v = append(*v, variable)
-		offset += variable.ByteSize()
+		offset += size
 	}
 	return nil
 }

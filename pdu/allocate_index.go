@@ -4,7 +4,9 @@
 
 package pdu
 
-// AllocateIndex defiens the pdu allocate index packet.
+import "errors"
+
+// AllocateIndex defines the pdu allocate index packet.
 type AllocateIndex struct {
 	Variables Variables
 }
@@ -23,7 +25,12 @@ func (ai *AllocateIndex) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
-// UnmarshalBinary sets the packet structure from the provided slice of bytes.
+// UnmarshalBinary is not implemented.
+//
+// Index allocation is not supported by this library: nothing here sends an
+// agentx-AllocateIndex-PDU, and the NEW_INDEX/ANY_INDEX flags of RFC 2741
+// 6.2.12 are not exposed. Returning an error rather than silently succeeding
+// keeps that visible.
 func (ai *AllocateIndex) UnmarshalBinary(data []byte) error {
-	return nil
+	return errors.New("allocate index: decoding is not implemented")
 }

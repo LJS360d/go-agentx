@@ -5,7 +5,8 @@
 package pdu
 
 import (
-	"github.com/LJS360d/go-agentx/marshaler"
+	"fmt"
+	"time"
 )
 
 // Open defines a pdu open packet.
@@ -21,18 +22,44 @@ func (o *Open) Type() Type {
 }
 
 // MarshalBinary returns the pdu packet as a slice of bytes.
+//
+// RFC 2741 6.2.1 lays the payload out as o.timeout in one byte followed by
+// three reserved bytes that must be zero-filled - the Timeout type's priority
+// byte has no place here, it belongs to the Register PDU only.
 func (o *Open) MarshalBinary() ([]byte, error) {
-	combined := marshaler.NewMulti(&o.Timeout, &o.ID, &o.Description)
+	if o.Timeout.Duration < 0 || o.Timeout.Duration > MaxTimeout {
+		return nil, fmt.Errorf("open: timeout %s is not in [0s, %s]", o.Timeout.Duration, MaxTimeout)
+	}
 
-	combinedBytes, err := combined.MarshalBinary()
+	result := []byte{byte(o.Timeout.Duration / time.Second), 0x00, 0x00, 0x00}
+
+	idBytes, err := o.ID.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	result = append(result, idBytes...)
+
+	descriptionBytes, err := o.Description.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 
-	return combinedBytes, nil
+	return append(result, descriptionBytes...), nil
 }
 
 // UnmarshalBinary sets the packet structure from the provided slice of bytes.
+//
+// A subagent never receives an agentx-Open-PDU; this exists so the type
+// satisfies Packet and so tests can round-trip what the library encodes.
 func (o *Open) UnmarshalBinary(data []byte) error {
-	return nil
+	if len(data) < 4 {
+		return fmt.Errorf("open: short buffer: got %d bytes, want at least 4", len(data))
+	}
+	o.Timeout.Duration = time.Duration(data[0]) * time.Second
+	o.Timeout.Priority = 0
+
+	if err := o.ID.UnmarshalBinary(data[4:]); err != nil {
+		return err
+	}
+	return o.Description.UnmarshalBinary(data[4+o.ID.ByteSize():])
 }

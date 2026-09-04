@@ -4,6 +4,8 @@
 
 package pdu
 
+import "encoding/binary"
+
 // GetNext defines the pdu get next packet.
 type GetNext struct {
 	SearchRanges Ranges
@@ -16,13 +18,16 @@ func (g *GetNext) Type() Type {
 
 // MarshalBinary returns the pdu packet as a slice of bytes.
 func (g *GetNext) MarshalBinary() ([]byte, error) {
-	return []byte{}, nil
+	return g.SearchRanges.MarshalBinary()
 }
 
 // UnmarshalBinary sets the packet structure from the provided slice of bytes.
 func (g *GetNext) UnmarshalBinary(data []byte) error {
-	if err := g.SearchRanges.UnmarshalBinary(data); err != nil {
-		return err
-	}
-	return nil
+	return g.SearchRanges.UnmarshalBinary(data)
+}
+
+// UnmarshalBinaryOrder sets the packet structure from the provided slice of
+// bytes, decoding multi-byte fields in the byte order the header declared.
+func (g *GetNext) UnmarshalBinaryOrder(data []byte, order binary.ByteOrder) error {
+	return g.SearchRanges.UnmarshalBinaryOrder(data, order)
 }

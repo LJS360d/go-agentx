@@ -4,6 +4,8 @@
 
 package pdu
 
+import "fmt"
+
 // Close defines the pdu close packet.
 type Close struct {
 	Reason Reason
@@ -21,6 +23,13 @@ func (c *Close) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary sets the packet structure from the provided slice of bytes.
 func (c *Close) UnmarshalBinary(data []byte) error {
+	if len(data) < 4 {
+		return fmt.Errorf("close: short buffer: got %d bytes, want 4", len(data))
+	}
 	c.Reason = Reason(data[0])
 	return nil
+}
+
+func (c *Close) String() string {
+	return "(close " + c.Reason.String() + ")"
 }
